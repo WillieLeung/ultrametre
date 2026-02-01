@@ -2,44 +2,45 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>Car Live Dashboard</title>
+    <title>Ultrametre</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
     <style>
         :root { --bg1: #071022; --bg2: #07182a; --accent1: #5eead4; --accent2: #60a5fa; }
         body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--bg1), var(--bg2)); color: #e8eef7; padding: 20px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; max-width: 800px; }
         .card { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }
-        .big { font-size: 32px; font-weight: 800; }
-        button { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; margin: 5px; }
+        .big { font-size: 32px; font-weight: 800; color: var(--accent1); }
+        button { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; margin: 5px; transition: 0.2s; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-primary { background: linear-gradient(90deg, #60a5fa, #5eead4); color: #071025; }
+        .btn-secondary { background: #334155; color: white; }
         .btn-danger { background: #fb7185; color: white; }
         .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
         .running { background: #34d399; }
         .stopped { background: #ef4444; }
-        /* loading (yellow) state */
-        .loading { background: linear-gradient(90deg, #f59e0b, #fbbf24); box-shadow: 0 8px 20px rgba(251,191,36,0.18); animation: pulse 1s ease-in-out infinite; }
-        @keyframes pulse { 0% { transform: scale(1); opacity: 1 } 50% { transform: scale(1.25); opacity: 0.85 } 100% { transform: scale(1); opacity: 1 } }
-        #raw { font-family: monospace; font-size: 12px; color: #9fb0c9; overflow: hidden; }
+        #raw { font-family: monospace; font-size: 12px; color: #9fb0c9; height: 60px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; }
     </style>
 </head>
 <body>
-    <h2>🚗 Car Live Dashboard</h2>
+    <h2>Ultrametre Dashboard</h2>
     <div class="grid">
-        <div class="card"><div class="label">Status</div><div id="state" class="big">OFFLINE</div></div>
-        <div class="card"><div class="label">Distance</div><div id="dist" class="big">0 cm</div></div>
-        <div class="card" style="grid-column: span 2;"><div class="label">Raw Serial</div><div id="raw">Waiting for data...</div></div>
+        <div class="card"><div class="label">Bridge Status</div><p id="bridgeStatus"><span class="status-dot stopped"></span> Disconnected</p></div>
+        <div class="card"><div class="label">Last Logged (from Arduino)</div><div id="loggedDist" class="big">0 cm</div></div>
+        <div class="card" style="grid-column: span 2;"><div class="label">Live Serial Feed</div><div id="raw">Waiting for data...</div></div>
     </div>
 
     <div style="margin-top: 20px;">
         <button id="startBtn" class="btn-primary" onclick="controlBridge('start')">Start Bridge</button>
         <button id="stopBtn" class="btn-danger" onclick="controlBridge('stop')" disabled>Stop Bridge</button>
-        <p id="bridgeStatus"><span class="status-dot stopped"></span> Bridge Stopped</p>
     </div>
 
-    <div style="margin-top: 20px;">
-        <input id="amt" type="number" step="0.001" value="0.01" style="padding: 8px; border-radius: 5px;">
+    <div class="card" style="margin-top: 20px; max-width: 800px;">
+        <div class="label">Robot Controls</div>
+        <input id="amt" type="number" step="0.001" value="0.01" style="padding: 10px; border-radius: 5px; border: none; width: 100px;">
         <button class="btn-primary" onclick="sendSol()">💸 Send SOL & Launch</button>
-        <p id="txResult"></p>
+        <button class="btn-secondary" onclick="fetchData()">🔄 Fetch Saved Dist</button>
+        <button class="btn-danger" onclick="clearData()">🧹 Clear Journey</button>
+        <p id="txResult" style="font-size: 12px; color: #9fb0c9; margin-top: 10px;"></p>
     </div>
 
     <script>
@@ -47,11 +48,19 @@
         
         events.addEventListener('serial', (e) => {
             const data = JSON.parse(e.data);
-            document.getElementById('raw').innerText = data.text;
-            const parts = data.text.split(',');
-            if(parts.length >= 5) {
-                document.getElementById('dist').innerText = parts[4] + ' cm';
-                document.getElementById('state').innerText = 'MOVING';
+            const text = data.text.trim();
+            if(!text) return;
+
+            document.getElementById('raw').innerText = text;
+
+            // Look for TOTAL_DISTANCE_TRAVELLED: XXX
+            let m = text.match(/TOTAL_DISTANCE_TRAVELLED:\s*([-+]?\d+(?:\.\d+)?)/i);
+            if (m) {
+                document.getElementById('loggedDist').innerText = m[1] + ' cm';
+            }
+
+            if (text.includes("DISTANCE_RESET")) {
+                document.getElementById('loggedDist').innerText = '0 cm';
             }
         });
 
@@ -60,47 +69,26 @@
             updateUI(data.running);
         });
 
-        function setBridgeLoading(isLoading) {
-            const bridgeStatus = document.getElementById('bridgeStatus');
-            const startBtn = document.getElementById('startBtn');
-            const stopBtn = document.getElementById('stopBtn');
-            if (isLoading) {
-                bridgeStatus.innerHTML = '<span class="status-dot loading"></span> Bridge starting...';
-                startBtn.disabled = true;
-                stopBtn.disabled = true;
-            } else {
-                // fall back to stopped visual until we get status update
-                bridgeStatus.innerHTML = '<span class="status-dot stopped"></span> Bridge stopped';
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-            }
+        async function controlBridge(action) {
+            const res = await fetch(`/bridge/${action}`, { method: 'POST' });
+            const statusRes = await fetch('/bridge/status');
+            const status = await statusRes.json();
+            updateUI(status.running);
         }
 
-        async function controlBridge(action) {
-            if (action === 'start') setBridgeLoading(true);
-            const res = await fetch(`/bridge/${action}`, { method: 'POST' });
-            const data = await res.json();
-            if (!data.ok) {
-                if (action === 'start') setBridgeLoading(false);
-                return alert('Error: ' + data.error);
-            }
+        async function fetchData() {
+            document.getElementById('loggedDist').innerText = 'Fetching...';
+            await fetch('/bridge/fetch-data', { method: 'POST' });
+        }
 
-            // refresh status without full reload
-            try {
-                const s = await fetch('/bridge/status');
-                const status = await s.json();
-                updateUI(status.running);
-            } catch (e) {
-                document.getElementById('bridgeStatus').innerText = 'Bridge: unreachable';
-            }
+        async function clearData() {
+            if(!confirm("Reset Arduino distance to 0?")) return;
+            await fetch('/bridge/clear', { method: 'POST' });
         }
 
         async function sendSol() {
-            const btn = event.target;
             const resEl = document.getElementById('txResult');
-            btn.disabled = true;
             resEl.innerText = "Processing Transaction...";
-            
             try {
                 const res = await fetch('/bridge/send', {
                     method: 'POST',
@@ -108,22 +96,18 @@
                     body: JSON.stringify({ amount: document.getElementById('amt').value })
                 });
                 const data = await res.json();
-                resEl.innerText = data.ok ? "✓ Sent: " + data.signature.slice(0,10) + "..." : "Error: " + data.error;
-            } catch (e) {
-                resEl.innerText = "Failed to connect to server.";
-            }
-            btn.disabled = false;
+                resEl.innerText = data.ok ? "✓ Sent: " + data.signature.slice(0,10) : "Error: " + data.error;
+            } catch (e) { resEl.innerText = "Failed to connect."; }
         }
 
         function updateUI(running) {
             document.getElementById('startBtn').disabled = running;
             document.getElementById('stopBtn').disabled = !running;
             document.getElementById('bridgeStatus').innerHTML = running ? 
-                '<span class="status-dot running"></span> Bridge Running (COM5)' : 
+                '<span class="status-dot running"></span> Bridge Connected' : 
                 '<span class="status-dot stopped"></span> Bridge Stopped';
         }
 
-        // Initial Status Check
         fetch('/bridge/status').then(r => r.json()).then(d => updateUI(d.running));
     </script>
 </body>
