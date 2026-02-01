@@ -1,114 +1,369 @@
 <!doctype html>
 <html>
-<head>
+  <head>
     <meta charset="utf-8" />
     <title>Ultrametre</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap"
+      rel="stylesheet"
+    />
     <style>
-        :root { --bg1: #071022; --bg2: #07182a; --accent1: #5eead4; --accent2: #60a5fa; }
-        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--bg1), var(--bg2)); color: #e8eef7; padding: 20px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; max-width: 800px; }
-        .card { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }
-        .big { font-size: 32px; font-weight: 800; color: var(--accent1); }
-        button { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; margin: 5px; transition: 0.2s; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-primary { background: linear-gradient(90deg, #60a5fa, #5eead4); color: #071025; }
-        .btn-secondary { background: #334155; color: white; }
-        .btn-danger { background: #fb7185; color: white; }
-        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
-        .running { background: #34d399; }
-        .stopped { background: #ef4444; }
-        #raw { font-family: monospace; font-size: 12px; color: #9fb0c9; height: 60px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; }
+      :root {
+        --bg1: #071022;
+        --bg2: #07182a;
+        --accent1: #5eead4;
+        --accent2: #60a5fa;
+        --card-bg: rgba(255, 255, 255, 0.03);
+        --muted: #9fb0c9;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        background: linear-gradient(135deg, var(--bg1), var(--bg2));
+        color: #e8eef7;
+        margin: 0;
+        padding: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .container {
+        width: 100%;
+        max-width: 920px;
+        margin: 0 auto;
+        text-align: center;
+      }
+      h2 {
+        margin: 0 0 20px;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        color: #fff;
+        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 18px;
+        margin-bottom: 20px;
+      }
+      @media (max-width: 700px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        background: var(--card-bg);
+        padding: 18px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 0 8px 30px rgba(2, 6, 23, 0.6);
+        text-align: left;
+      }
+      .label {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 8px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .big {
+        font-size: 44px;
+        font-weight: 800;
+        color: var(--accent1);
+        text-align: center;
+      }
+      #raw {
+        font-family: monospace;
+        font-size: 13px;
+        color: #9fb0c9;
+        height: 100px;
+        overflow-y: auto;
+        background: linear-gradient(
+          180deg,
+          rgba(0, 0, 0, 0.12),
+          rgba(255, 255, 255, 0.02)
+        );
+        padding: 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.03);
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      input[type="number"] {
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(0, 0, 0, 0.18);
+        color: #e8eef7;
+        width: 120px;
+        text-align: center;
+      }
+      button {
+        padding: 10px 16px;
+        border-radius: 10px;
+        border: none;
+        font-weight: 700;
+        cursor: pointer;
+        margin: 5px;
+        transition:
+          transform 0.14s ease,
+          box-shadow 0.14s ease,
+          opacity 0.14s ease;
+        box-shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
+      }
+      button:hover {
+        transform: translateY(-3px);
+      }
+      button:disabled {
+        opacity: 0.45;
+        transform: none;
+        cursor: not-allowed;
+        box-shadow: none;
+        filter: grayscale(0.04);
+      }
+      .btn-primary {
+        background: linear-gradient(90deg, var(--accent2), var(--accent1));
+        color: #071025;
+      }
+      .btn-secondary {
+        background: linear-gradient(
+          90deg,
+          rgba(99, 102, 241, 0.12),
+          rgba(147, 197, 253, 0.06)
+        );
+        color: #e8eef7;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+      }
+      .btn-danger {
+        background: linear-gradient(90deg, #fb7185, #f97316);
+        color: #071025;
+      }
+      .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+        vertical-align: middle;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+      }
+      .running {
+        background: #34d399;
+        box-shadow: 0 6px 18px rgba(52, 211, 153, 0.14);
+      }
+      .stopped {
+        background: #ef4444;
+        box-shadow: 0 6px 18px rgba(239, 68, 68, 0.12);
+      }
+      .status-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .dist-status {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+        height: 18px;
+        line-height: 18px;
+        text-align: center;
+        min-width: 120px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .footer-note {
+        margin-top: 14px;
+        font-size: 12px;
+        color: var(--muted);
+        text-align: center;
+      }
     </style>
-</head>
-<body>
-    <h2>Ultrametre Dashboard</h2>
-    <div class="grid">
-        <div class="card"><div class="label">Bridge Status</div><p id="bridgeStatus"><span class="status-dot stopped"></span> Disconnected</p></div>
-        <div class="card"><div class="label">Last Logged (from Arduino)</div><div id="loggedDist" class="big">0 cm</div></div>
-        <div class="card" style="grid-column: span 2;"><div class="label">Live Serial Feed</div><div id="raw">Waiting for data...</div></div>
-    </div>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Ultrametre Dashboard</h2>
+      <div class="grid">
+        <div class="card">
+          <div class="label">Bridge Status</div>
+          <p id="bridgeStatus">
+            <span class="status-dot stopped"></span> Disconnected
+          </p>
+        </div>
+        <div class="card">
+          <div class="label">Last Logged (from Arduino)</div>
+          <div id="loggedDist" class="big">0 cm</div>
+          <div id="distStatus" class="dist-status" aria-live="polite"></div>
+        </div>
+        <div class="card" style="grid-column: span 2">
+          <div class="label">Live Serial Feed</div>
+          <div id="raw">Waiting for data...</div>
+        </div>
+      </div>
 
-    <div style="margin-top: 20px;">
-        <button id="startBtn" class="btn-primary" onclick="controlBridge('start')">Start Bridge</button>
-        <button id="stopBtn" class="btn-danger" onclick="controlBridge('stop')" disabled>Stop Bridge</button>
-    </div>
+      <div
+        style="
+          margin-top: 20px;
+          display: flex;
+          gap: 10px;
+          justify-content: center;
+        "
+      >
+        <button
+          id="startBtn"
+          class="btn-primary"
+          onclick="controlBridge('start')"
+        >
+          Start Bridge
+        </button>
+        <button
+          id="stopBtn"
+          class="btn-danger"
+          onclick="controlBridge('stop')"
+          disabled
+        >
+          Stop Bridge
+        </button>
+      </div>
 
-    <div class="card" style="margin-top: 20px; max-width: 800px;">
+      <div class="card" style="margin-top: 20px">
         <div class="label">Robot Controls</div>
-        <input id="amt" type="number" step="0.001" value="0.01" style="padding: 10px; border-radius: 5px; border: none; width: 100px;">
-        <button class="btn-primary" onclick="sendSol()">💸 Send SOL & Launch</button>
-        <button class="btn-secondary" onclick="fetchData()">🔄 Fetch Saved Dist</button>
-        <button class="btn-danger" onclick="clearData()">🧹 Clear Journey</button>
-        <p id="txResult" style="font-size: 12px; color: #9fb0c9; margin-top: 10px;"></p>
+        <div class="controls">
+          <input id="amt" type="number" step="0.001" value="0.01" />
+          <button id="sendBtn" class="btn-primary" onclick="sendSol()">
+            💸 Send SOL & Launch
+          </button>
+          <button id="fetchBtn" class="btn-secondary" onclick="fetchData()">
+            🔄 Fetch Saved Dist
+          </button>
+          <button id="clearBtn" class="btn-danger" onclick="clearData()">
+            🧹 Clear Journey
+          </button>
+        </div>
+        <p id="txResult" class="footer-note"></p>
+      </div>
     </div>
 
     <script>
-        const events = new EventSource('/bridge/events');
-        
-        events.addEventListener('serial', (e) => {
-            const data = JSON.parse(e.data);
-            const text = data.text.trim();
-            if(!text) return;
+      const events = new EventSource("/bridge/events");
 
-            document.getElementById('raw').innerText = text;
+      events.addEventListener("serial", (e) => {
+        const data = JSON.parse(e.data);
+        const text = data.text.trim();
+        if (!text) return;
 
-            // Look for TOTAL_DISTANCE_TRAVELLED: XXX
-            let m = text.match(/TOTAL_DISTANCE_TRAVELLED:\s*([-+]?\d+(?:\.\d+)?)/i);
-            if (m) {
-                document.getElementById('loggedDist').innerText = m[1] + ' cm';
+        document.getElementById("raw").innerText = text;
+
+        // Look for TOTAL_DISTANCE_TRAVELLED: XXX
+        let m = text.match(/TOTAL_DISTANCE_TRAVELLED:\s*([-+]?\d+(?:\.\d+)?)/i);
+        if (m) {
+          document.getElementById("loggedDist").innerText = m[1] + " cm";
+        }
+
+        if (text.includes("DISTANCE_RESET")) {
+          document.getElementById("loggedDist").innerText = "0 cm";
+        }
+      });
+
+      events.addEventListener("status", (e) => {
+        const data = JSON.parse(e.data);
+        updateUI(data.running);
+      });
+
+      async function controlBridge(action) {
+        const res = await fetch(`/bridge/${action}`, { method: "POST" });
+        const statusRes = await fetch("/bridge/status");
+        const status = await statusRes.json();
+        updateUI(status.running);
+      }
+
+      async function fetchData(retries = 2) {
+        const fetchBtn = document.getElementById("fetchBtn");
+        const distEl = document.getElementById("loggedDist");
+        const statusEl = document.getElementById("distStatus");
+        fetchBtn.disabled = true;
+        statusEl.innerText = "Fetching…";
+        try {
+          const res = await fetch("/bridge/fetch-data", { method: "POST" });
+          const data = await res.json();
+          if (data.ok && data.distance !== undefined) {
+            distEl.innerText = data.distance + " cm";
+            statusEl.innerText = "";
+            fetchBtn.disabled = false;
+            return;
+          } else {
+            if (retries > 0) {
+              statusEl.innerText = "Retrying…";
+              await new Promise((r) => setTimeout(r, 700));
+              await fetchData(retries - 1);
+              return;
             }
+            statusEl.innerText = "No resp";
+            fetchBtn.disabled = false;
+            return;
+          }
+        } catch (e) {
+          statusEl.innerText = "Failed";
+          fetchBtn.disabled = false;
+        }
+      }
 
-            if (text.includes("DISTANCE_RESET")) {
-                document.getElementById('loggedDist').innerText = '0 cm';
-            }
+      async function clearData() {
+        if (!confirm("Reset Arduino distance to 0?")) return;
+        await fetch("/bridge/clear", { method: "POST" });
+      }
+
+      async function sendSol() {
+        const resEl = document.getElementById("txResult");
+        resEl.innerText = "Processing Transaction...";
+        try {
+          const res = await fetch("/bridge/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              amount: document.getElementById("amt").value,
+            }),
+          });
+          const data = await res.json();
+          resEl.innerText = data.ok
+            ? "✓ Sent: " + data.signature.slice(0, 10)
+            : "Error: " + data.error;
+        } catch (e) {
+          resEl.innerText = "Failed to connect.";
+        }
+      }
+
+      function updateUI(running) {
+        document.getElementById("startBtn").disabled = running;
+        document.getElementById("stopBtn").disabled = !running;
+        document.getElementById("bridgeStatus").innerHTML = running
+          ? '<span class="status-dot running"></span> Bridge Connected'
+          : '<span class="status-dot stopped"></span> Bridge Stopped';
+
+        // disable/enable controls that require the bridge
+        ["sendBtn", "fetchBtn", "clearBtn"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.disabled = !running;
         });
+      }
 
-        events.addEventListener('status', (e) => {
-            const data = JSON.parse(e.data);
-            updateUI(data.running);
-        });
-
-        async function controlBridge(action) {
-            const res = await fetch(`/bridge/${action}`, { method: 'POST' });
-            const statusRes = await fetch('/bridge/status');
-            const status = await statusRes.json();
-            updateUI(status.running);
-        }
-
-        async function fetchData() {
-            document.getElementById('loggedDist').innerText = 'Fetching...';
-            await fetch('/bridge/fetch-data', { method: 'POST' });
-        }
-
-        async function clearData() {
-            if(!confirm("Reset Arduino distance to 0?")) return;
-            await fetch('/bridge/clear', { method: 'POST' });
-        }
-
-        async function sendSol() {
-            const resEl = document.getElementById('txResult');
-            resEl.innerText = "Processing Transaction...";
-            try {
-                const res = await fetch('/bridge/send', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ amount: document.getElementById('amt').value })
-                });
-                const data = await res.json();
-                resEl.innerText = data.ok ? "✓ Sent: " + data.signature.slice(0,10) : "Error: " + data.error;
-            } catch (e) { resEl.innerText = "Failed to connect."; }
-        }
-
-        function updateUI(running) {
-            document.getElementById('startBtn').disabled = running;
-            document.getElementById('stopBtn').disabled = !running;
-            document.getElementById('bridgeStatus').innerHTML = running ? 
-                '<span class="status-dot running"></span> Bridge Connected' : 
-                '<span class="status-dot stopped"></span> Bridge Stopped';
-        }
-
-        fetch('/bridge/status').then(r => r.json()).then(d => updateUI(d.running));
+      fetch("/bridge/status")
+        .then((r) => r.json())
+        .then((d) => updateUI(d.running));
     </script>
-</body>
+  </body>
 </html>
