@@ -5,8 +5,12 @@ int enB = 3; int in3 = 4; int in4 = 2;
 int trigPin = 11; int echoPin = 12;
 
 bool solanaTriggered = false;
-unsigned long lastLogTime = 0;
 float totalDistanceTravelled = 0.0;
+float globalHeading = 0.0;
+float lastPathUpdate = 0;
+
+int eepromAddress = 0;       
+const int maxAddress = 8000; // max storage
 
 void setup() {
   Serial.begin(9600);
@@ -21,6 +25,11 @@ void setup() {
     totalDistanceTravelled = 0;
   }
   
+  EEPROM.get(10, eepromAddress);
+  if (eepromAddress < 20 || eepromAddress > 8000) {
+    eepromAddress = 20;
+  }
+
   digitalWrite(13, LOW);
 }
 
@@ -52,9 +61,18 @@ void loop() {
       digitalWrite(13, LOW);
     }
     if (data == 'D') {
-      // Send the distance to the Web UI
       Serial.print("TOTAL_DISTANCE_TRAVELLED: ");
       Serial.println(totalDistanceTravelled);
+
+      Serial.println("---START_DATA_DUMP---");
+      for (int i = 4; i < eepromAddress; i += 6) {
+        int d; float h;
+        EEPROM.get(i, d);
+        EEPROM.get(i + 2, h);
+        Serial.print(d); Serial.print(","); Serial.println(h);
+        delay(100); 
+      }
+      Serial.println("---END_DATA_DUMP---");
     }
     if (data == 'C') {
       totalDistanceTravelled = 0;
@@ -66,18 +84,33 @@ void loop() {
   if (solanaTriggered) {
     long sensorDist = getSmoothDistance();
     
-    if (millis() - lastLogTime >= 1000) {
-      totalDistanceTravelled += 25.0; // Simulated distance per second
+    if (millis() - lastPathUpdate >= 1000) {
+      totalDistanceTravelled += sensorDist;
       EEPROM.put(0, totalDistanceTravelled);
-      lastLogTime = millis();
+
+      if (eepromAddress <= maxAddress - 6) {
+        int dToSave = (int)sensorDist;
+        EEPROM.put(eepromAddress, dToSave);
+        EEPROM.put(eepromAddress + 2, globalHeading);
+        eepromAddress += 6; 
+      }
+
+      Serial.print(sensorDist);
+      Serial.print(",");
+      Serial.println(globalHeading);
+
+      lastPathUpdate = millis();
     }
 
     if (sensorDist < 30 && sensorDist > 0) {
       move(0, 0, LOW, LOW, LOW, LOW); delay(200);
       move(155, 150, HIGH, LOW, HIGH, LOW); delay(400);
-      move(185, 180, HIGH, LOW, LOW, HIGH); delay(400); 
+      move(175, 160, HIGH, LOW, LOW, HIGH); delay(200); 
+
+      globalHeading += 90;
+      if (globalHeading >= 360) globalHeading -= 360;
     } else {
-      move(250, 200, LOW, HIGH, LOW, HIGH); 
+      move(150, 145, LOW, HIGH, LOW, HIGH); 
     }
   } else {
     move(0, 0, LOW, LOW, LOW, LOW);

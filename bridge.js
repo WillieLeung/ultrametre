@@ -1,7 +1,9 @@
+require('dotenv').config(); 
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const snowflake = require('snowflake-sdk');
 const { SerialPort } = require('serialport');
 const { Connection, clusterApiUrl, PublicKey, Transaction, SystemProgram, Keypair, sendAndConfirmTransaction, LAMPORTS_PER_SOL } = require('@solana/web3.js');
 
@@ -9,6 +11,20 @@ const HTTP_PORT = 3000;
 const SERIAL_PATH = 'COM5';
 const SERIAL_BAUD = 9600;
 const ROBOT_WALLET = new PublicKey('DsjJMaAxPoXARLsCW3uc3ThheAiy4b5ebUB7WzufDKwd');
+
+const snowflakeConn = snowflake.createConnection({
+    account: process.env.SNOWFLAKE_ACCOUNT,
+    username: process.env.SNOWFLAKE_USER,
+    password: process.env.SNOWFLAKE_PASS,
+    warehouse: process.env.SNOWFLAKE_WAREHOUSE,
+    database: process.env.SNOWFLAKE_DATABASE,
+    schema: process.env.SNOWFLAKE_SCHEMA
+});
+
+snowflakeConn.connect((err) => {
+    if (err) console.error('Snowflake Connection Error:', err.message);
+    else console.log('Connected to Snowflake.');
+});
 
 let port = null;
 let subscriptionId = null;
@@ -22,18 +38,62 @@ function broadcast(event, data) {
 }
 
 async function startBridge() {
-    if (running) return { ok: true };
+    if (running || (port && port.isOpen)) {
+        console.log("Bridge is already running.");
+        return { ok: true };
+    }
+    
+    // Create port instance
     port = new SerialPort({ path: SERIAL_PATH, baudRate: SERIAL_BAUD, autoOpen: false });
     
     return new Promise((resolve) => {
         port.open((err) => {
-            if (err) return resolve({ ok: false, error: err.message });
+            if (err) {
+                console.error('Serial Port Error:', err.message);
+                return resolve({ ok: false, error: err.message });
+            }
             
-            port.on('data', (chunk) => broadcast('serial', { text: chunk.toString() }));
-            port.on('close', () => { running = false; broadcast('status', { running: false }); });
+            console.log(`Serial Port ${SERIAL_PATH} Opened.`);
 
-            subscriptionId = connection.onAccountChange(ROBOT_WALLET, () => {
-                if(port.isOpen) port.write('F\n');
+            port.on('data', (chunk) => {
+                const rawData = chunk.toString().trim();
+                if (!rawData || rawData.includes("---")) return;
+                if (rawData.includes("TOTAL_DISTANCE")) {
+                    broadcast('serial', { text: rawData });
+                    return; 
+                }
+
+                const parts = rawData.split(',');
+                if (parts.length === 2) {
+                    const dist = parseFloat(parts[0]);
+                    const angle = parseFloat(parts[1]);
+
+                    if (!isNaN(dist) && !isNaN(angle)) {
+                        const rad = angle * (Math.PI / 180);
+                        const x = dist * Math.cos(rad);
+                        const y = dist * Math.sin(rad);
+                        const timestamp = new Date().toISOString();
+
+                        snowflakeConn.execute({
+                            sqlText: `INSERT INTO ROOM_DATA (DISTANCE_CM, ANGLE_DEG, X_COORD, Y_COORD, RECORDED_AT) VALUES (?, ?, ?, ?, ?)`,
+                            binds: [dist, angle, x, y, timestamp],
+                            complete: (err) => {
+                                if (err) console.error('Snowflake Insert Error:', err.message);
+                                else {console.log(`Data Uploaded`);}
+                            }
+                        });
+                    }
+                }
+            });
+
+            port.on('close', () => { 
+                running = false; 
+                broadcast('status', { running: false }); 
+            });
+
+            // FIXED: Use lowercase 'connection' and add (info) parameter
+            subscriptionId = connection.onAccountChange(ROBOT_WALLET, (info) => {
+                if(port && port.isOpen) port.write('F\n');
             }, 'processed');
 
             running = true;
@@ -45,13 +105,22 @@ async function startBridge() {
 
 const app = express();
 app.use(express.json());
+
 app.use(express.static(__dirname));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 app.get('/bridge/status', (req, res) => res.json({ running }));
 
-app.post('/bridge/start', async (req, res) => res.json(await startBridge()));
+app.post('/bridge/start', async (req, res) => {
+    const result = await startBridge();
+    res.json(result);
+});
 
 app.post('/bridge/stop', async (req, res) => {
+    // FIXED: Use lowercase 'connection'
     if (subscriptionId) await connection.removeAccountChangeListener(subscriptionId);
     if (port && port.isOpen) port.close();
     running = false;
@@ -92,7 +161,10 @@ app.post('/bridge/send', async (req, res) => {
         const signature = await sendAndConfirmTransaction(connection, transaction, [fromKeypair]);
         if (port && port.isOpen) port.write('F\n');
         res.json({ ok: true, signature });
-    } catch (e) { res.status(400).json({ ok: false, error: e.message }); }
+    } catch (e) { 
+        console.error('Solana Error:', e.message);
+        res.status(400).json({ ok: false, error: e.message }); 
+    }
 });
 
 app.get('/bridge/events', (req, res) => {
@@ -101,4 +173,4 @@ app.get('/bridge/events', (req, res) => {
     req.on('close', () => sseClients = sseClients.filter(c => c !== res));
 });
 
-app.listen(HTTP_PORT, () => console.log(`http://localhost:${HTTP_PORT}`));
+app.listen(HTTP_PORT, () => console.log(`Server running at http://localhost:${HTTP_PORT}`));

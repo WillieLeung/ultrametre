@@ -6,19 +6,71 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
     <style>
         :root { --bg1: #071022; --bg2: #07182a; --accent1: #5eead4; --accent2: #60a5fa; }
-        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--bg1), var(--bg2)); color: #e8eef7; padding: 20px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; max-width: 800px; }
-        .card { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, var(--bg1), var(--bg2)); 
+            color: #e8eef7; 
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Centers horizontally */
+            justify-content: center; /* Centers vertically */
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h2 { margin-bottom: 20px; text-align: center; }
+
+        .grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+            width: 100%;
+            max-width: 800px; 
+        }
+
+        .card { 
+            background: rgba(255,255,255,0.03); 
+            padding: 20px; 
+            border-radius: 12px; 
+            border: 1px solid rgba(255,255,255,0.05); 
+            box-sizing: border-box;
+        }
+
+        .controls-container {
+            text-align: center;
+            width: 100%;
+            max-width: 800px;
+        }
+
         .big { font-size: 32px; font-weight: 800; color: var(--accent1); }
+        
         button { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; margin: 5px; transition: 0.2s; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
         .btn-primary { background: linear-gradient(90deg, #60a5fa, #5eead4); color: #071025; }
         .btn-secondary { background: #334155; color: white; }
         .btn-danger { background: #fb7185; color: white; }
+        
         .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
         .running { background: #34d399; }
         .stopped { background: #ef4444; }
-        #raw { font-family: monospace; font-size: 12px; color: #9fb0c9; height: 60px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; }
+        
+        #raw { 
+            font-family: monospace; 
+            font-size: 12px; 
+            color: #9fb0c9; 
+            height: 60px; 
+            overflow-y: auto; 
+            background: rgba(0,0,0,0.2); 
+            padding: 10px; 
+            border-radius: 8px; 
+            margin-top: 10px;
+        }
+
+        .label { color: #9fb0c9; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;}
     </style>
 </head>
 <body>
@@ -37,9 +89,9 @@
     <div class="card" style="margin-top: 20px; max-width: 800px;">
         <div class="label">Robot Controls</div>
         <input id="amt" type="number" step="0.001" value="0.01" style="padding: 10px; border-radius: 5px; border: none; width: 100px;">
-        <button class="btn-primary" onclick="sendSol()">💸 Send SOL & Launch</button>
-        <button class="btn-secondary" onclick="fetchData()">🔄 Fetch Saved Dist</button>
-        <button class="btn-danger" onclick="clearData()">🧹 Clear Journey</button>
+        <button class="btn-primary" onclick="sendSol()">Send SOL & Launch</button>
+        <button class="btn-secondary" onclick="fetchData()">Fetch Saved Dist</button>
+        <button class="btn-danger" onclick="clearData()">Clear Journey</button>
         <p id="txResult" style="font-size: 12px; color: #9fb0c9; margin-top: 10px;"></p>
     </div>
 
