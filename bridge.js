@@ -1,3 +1,8 @@
+// bridge.js — Ultrametre bridge server
+// - Exposes a small HTTP UI and Server-Sent Events (SSE) stream
+// - Manages a serial connection to the Arduino and listens for Solana account changes
+// - Forwards serial messages to the UI and exposes control endpoints (start/stop/fetch/clear/send)
+
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
@@ -27,11 +32,13 @@ let running = false;
 let sseClients = [];
 const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
 
+// Broadcast an SSE (Server-Sent Event) message to all connected clients
 function broadcast(event, data) {
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   sseClients.forEach((res) => res.write(payload));
 }
 
+// Start the serial bridge: open serial port, attach listeners, and begin watching Solana account
 async function startBridge() {
   if (running) return { ok: true };
   port = new SerialPort({
@@ -44,14 +51,18 @@ async function startBridge() {
     port.open((err) => {
       if (err) return resolve({ ok: false, error: err.message });
 
+      // Forward raw serial data to any connected SSE clients
       port.on("data", (chunk) =>
         broadcast("serial", { text: chunk.toString() }),
       );
+
+      // Handle port close to update status
       port.on("close", () => {
         running = false;
         broadcast("status", { running: false });
       });
 
+      // Subscribe to the Solana account and trigger the robot when a change is detected
       subscriptionId = connection.onAccountChange(
         ROBOT_WALLET,
         () => {
@@ -71,10 +82,13 @@ const app = express();
 app.use(express.json());
 app.use(express.static(__dirname));
 
+// Status endpoint: returns whether the bridge is running
 app.get("/bridge/status", (req, res) => res.json({ running }));
 
+// Start the bridge (open serial and begin monitoring Solana)
 app.post("/bridge/start", async (req, res) => res.json(await startBridge()));
 
+// Stop the bridge and remove Solana subscription
 app.post("/bridge/stop", async (req, res) => {
   if (subscriptionId)
     await connection.removeAccountChangeListener(subscriptionId);
@@ -103,7 +117,7 @@ app.post("/bridge/fetch-data", async (req, res) => {
             resolve(m);
           }
         } catch (e) {
-          /* ignore parse errors */
+          // ignore parse errors from partial/garbled serial chunks
         }
       };
       port.on("data", onData);
@@ -118,7 +132,7 @@ app.post("/bridge/fetch-data", async (req, res) => {
     try {
       port.write("D\n");
     } catch (e) {
-      /* ignore write errors and continue */
+      // ignore write errors (port may transiently fail) and continue to retry
     }
     // wait for a line like: TOTAL_DISTANCE_TRAVELLED: 123
     const m = await waitForSerialMatch(
@@ -139,6 +153,7 @@ app.post("/bridge/fetch-data", async (req, res) => {
   });
 });
 
+// Request the Arduino to clear its saved distance value
 app.post("/bridge/clear", (req, res) => {
   if (port && port.isOpen) {
     port.write("C\n");
@@ -147,6 +162,7 @@ app.post("/bridge/clear", (req, res) => {
   res.status(400).json({ ok: false, error: "Port closed" });
 });
 
+// Send SOL to the robot's wallet, then trigger the robot by writing 'F' to serial
 app.post("/bridge/send", async (req, res) => {
   try {
     const { amount } = req.body;
@@ -174,6 +190,7 @@ app.post("/bridge/send", async (req, res) => {
   }
 });
 
+// SSE endpoint: the UI connects here to receive continuous serial/status updates
 app.get("/bridge/events", (req, res) => {
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
@@ -184,4 +201,5 @@ app.get("/bridge/events", (req, res) => {
   req.on("close", () => (sseClients = sseClients.filter((c) => c !== res)));
 });
 
+// Start the HTTP server
 app.listen(HTTP_PORT, () => console.log(`http://localhost:${HTTP_PORT}`));

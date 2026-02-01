@@ -1,3 +1,7 @@
+// bot.ino — Ultrametre robot control sketch
+// - Reads ultrasonic distance, controls motors, and maintains a cumulative distance
+// - Responds to simple serial commands: 'F' (start movement), 'S' (stop), 'D' (dump distance), 'C' (clear distance)
+
 #include <EEPROM.h>
 
 int enA = 9;
@@ -9,6 +13,9 @@ int in4 = 2;
 int trigPin = 11;
 int echoPin = 12;
 
+// Runtime flags and persisted telemetry
+// `solanaTriggered` indicates whether the robot should be moving
+// `lastLogTime` helps with 1-second distance logging; `totalDistanceTravelled` is stored in EEPROM
 bool solanaTriggered = false;
 unsigned long lastLogTime = 0;
 float totalDistanceTravelled = 0.0;
