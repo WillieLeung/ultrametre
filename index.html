@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Car Live Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg1: #071022; --bg2: #07182a; --accent1: #5eead4; --accent2: #60a5fa; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--bg1), var(--bg2)); color: #e8eef7; padding: 20px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; max-width: 800px; }
+        .card { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }
+        .big { font-size: 32px; font-weight: 800; }
+        button { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; margin: 5px; }
+        .btn-primary { background: linear-gradient(90deg, #60a5fa, #5eead4); color: #071025; }
+        .btn-danger { background: #fb7185; color: white; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .running { background: #34d399; }
+        .stopped { background: #ef4444; }
+        #raw { font-family: monospace; font-size: 12px; color: #9fb0c9; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <h2>🚗 Car Live Dashboard</h2>
+    <div class="grid">
+        <div class="card"><div class="label">Status</div><div id="state" class="big">OFFLINE</div></div>
+        <div class="card"><div class="label">Distance</div><div id="dist" class="big">0 cm</div></div>
+        <div class="card" style="grid-column: span 2;"><div class="label">Raw Serial</div><div id="raw">Waiting for data...</div></div>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <button id="startBtn" class="btn-primary" onclick="controlBridge('start')">Start Bridge</button>
+        <button id="stopBtn" class="btn-danger" onclick="controlBridge('stop')" disabled>Stop Bridge</button>
+        <p id="bridgeStatus"><span class="status-dot stopped"></span> Bridge Stopped</p>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <input id="amt" type="number" step="0.001" value="0.01" style="padding: 8px; border-radius: 5px;">
+        <button class="btn-primary" onclick="sendSol()">💸 Send SOL & Launch</button>
+        <p id="txResult"></p>
+    </div>
+
+    <script>
+        const events = new EventSource('/bridge/events');
+        
+        events.addEventListener('serial', (e) => {
+            const data = JSON.parse(e.data);
+            document.getElementById('raw').innerText = data.text;
+            const parts = data.text.split(',');
+            if(parts.length >= 5) {
+                document.getElementById('dist').innerText = parts[4] + ' cm';
+                document.getElementById('state').innerText = 'MOVING';
+            }
+        });
+
+        events.addEventListener('status', (e) => {
+            const data = JSON.parse(e.data);
+            updateUI(data.running);
+        });
+
+        async function controlBridge(action) {
+            const res = await fetch(`/bridge/${action}`, { method: 'POST' });
+            const data = await res.json();
+            if(!data.ok) alert("Error: " + data.error);
+            location.reload(); // Refresh to sync state
+        }
+
+        async function sendSol() {
+            const btn = event.target;
+            const resEl = document.getElementById('txResult');
+            btn.disabled = true;
+            resEl.innerText = "Processing Transaction...";
+            
+            try {
+                const res = await fetch('/bridge/send', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ amount: document.getElementById('amt').value })
+                });
+                const data = await res.json();
+                resEl.innerText = data.ok ? "✓ Sent: " + data.signature.slice(0,10) + "..." : "Error: " + data.error;
+            } catch (e) {
+                resEl.innerText = "Failed to connect to server.";
+            }
+            btn.disabled = false;
+        }
+
+        function updateUI(running) {
+            document.getElementById('startBtn').disabled = running;
+            document.getElementById('stopBtn').disabled = !running;
+            document.getElementById('bridgeStatus').innerHTML = running ? 
+                '<span class="status-dot running"></span> Bridge Running (COM5)' : 
+                '<span class="status-dot stopped"></span> Bridge Stopped';
+        }
+
+        // Initial Status Check
+        fetch('/bridge/status').then(r => r.json()).then(d => updateUI(d.running));
+    </script>
+</body>
+</html>
