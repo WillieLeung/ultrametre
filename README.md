@@ -11,7 +11,7 @@ Ultrametre is a compact, real-time bridge that connects an Arduino-based distanc
 - Simple serial control protocol: `F` (start), `S` (stop), `D` (dump distance), `C` (clear) — all documented in the Arduino sketch
 - Well-commented codebase for easy modification and extension
 
-## Promotional summary
+## Why Ultrametre?
 
 Ultrametre packages a complete demo-ready stack for hardware + blockchain interactions. It is an excellent fit for classrooms, hackathons, and prototype showcases where you want reliable serial telemetry and a low-friction way to demonstrate remote triggers (using Solana test tokens on devnet).
 
@@ -43,17 +43,6 @@ Why use Ultrametre:
 5. Open the UI: `http://localhost:3000`
 
 6. Upload and run the Arduino sketch in `bot/bot.ino` on your board.
-
-## Web UI and endpoints
-
-- UI: `GET /` (open in a browser)
-- SSE (live serial + status updates): `GET /bridge/events`
-- Status: `GET /bridge/status` → `{ running: boolean }`
-- Start bridge (open serial + subscribe to Solana): `POST /bridge/start`
-- Stop bridge: `POST /bridge/stop`
-- Fetch current distance from Arduino: `POST /bridge/fetch-data` (the bridge will retry a few times if the device doesn't respond immediately)
-- Clear distance (Arduino): `POST /bridge/clear`
-- Send SOL and trigger robot: `POST /bridge/send` with JSON body `{ "amount": "0.01" }`
 
 ## Arduino serial protocol
 
